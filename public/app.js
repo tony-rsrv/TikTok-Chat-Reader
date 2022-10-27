@@ -1,6 +1,8 @@
 // This will use the demo backend if you open index.html locally via file://, otherwise your server will be used
 let backendUrl = location.protocol === 'file:' ? "https://tiktok-chat-reader.zerody.one/" : undefined;
 let connection = new TikTokIOConnection(backendUrl);
+const params = new URLSearchParams(window.location.search);
+const username = params.get('username');
 
 // Counter
 let viewerCount = 0;
@@ -11,18 +13,11 @@ let diamondsCount = 0;
 if (!window.settings) window.settings = {};
 
 $(document).ready(() => {
-    $('#connectButton').click(connect);
-    $('#uniqueIdInput').on('keyup', function (e) {
-        if (e.key === 'Enter') {
-            connect();
-        }
-    });
-
-    if (window.settings.username) connect();
+    if (username) connect();
 })
 
 function connect() {
-    let uniqueId = window.settings.username || $('#uniqueIdInput').val();
+    let uniqueId = username || $('#uniqueIdInput').val();
     if (uniqueId !== '') {
 
         $('#stateText').text('Connecting...');
@@ -76,6 +71,31 @@ function isPendingStreak(data) {
  */
 function addChatItem(color, data, text, summarize) {
     let container = location.href.includes('obs.html') ? $('.eventcontainer') : $('.chatcontainer');
+
+    if (container.find('div').length > 500) {
+        container.find('div').slice(0, 200).remove();
+    }
+
+    container.find('.temporary').remove();;
+
+    container.append(`
+        <div class=${summarize ? 'temporary' : 'static'}>
+            <img class="miniprofilepicture" src="${data.profilePictureUrl}">
+            <span>
+                <b>${generateUsernameLink(data)}:</b> 
+                <span style="color:${color}">${sanitize(text)}</span>
+            </span>
+        </div>
+    `);
+
+    container.stop();
+    container.animate({
+        scrollTop: container[0].scrollHeight
+    }, 400);
+}
+
+function addAlertItem(color, data, text, summarize) {
+    let container = location.href.includes('obs.html') ? $('.eventcontainer') : $('.alertcontainer');
 
     if (container.find('div').length > 500) {
         container.find('div').slice(0, 200).remove();
@@ -165,7 +185,7 @@ connection.on('like', (msg) => {
     if (window.settings.showLikes === "0") return;
 
     if (typeof msg.likeCount === 'number') {
-        addChatItem('#447dd4', msg, msg.label.replace('{0:user}', '').replace('likes', `${msg.likeCount} likes`))
+        addAlertItem('#447dd4', msg, msg.label.replace('{0:user}', '').replace('likes', `${msg.likeCount} likes`))
     }
 })
 
@@ -182,7 +202,7 @@ connection.on('member', (msg) => {
 
     setTimeout(() => {
         joinMsgDelay -= addDelay;
-        addChatItem('#21b2c2', msg, 'joined', true);
+        addAlertItem('#21b2c2', msg, 'joined', true);
     }, joinMsgDelay);
 })
 
@@ -210,7 +230,7 @@ connection.on('social', (data) => {
     if (window.settings.showFollows === "0") return;
 
     let color = data.displayType.includes('follow') ? '#ff005e' : '#2fb816';
-    addChatItem(color, data, data.label.replace('{0:user}', ''));
+    addAlertItem(color, data, data.label.replace('{0:user}', ''));
 })
 
 connection.on('streamEnd', () => {
